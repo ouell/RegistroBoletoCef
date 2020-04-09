@@ -4,8 +4,11 @@ using RegistroBoletoCefApi.Models;
 
 namespace RegistroBoletoCefApi.Controllers
 {
+    [Route("registroboleto")]
     public class RegistroBoletoCefController : ControllerBase
     {
+        [HttpPost]
+        [Route("solicitar")]
         public async Task<ActionResult> Solicitar([FromBody] SolicitacaoDto body)
         {
             
