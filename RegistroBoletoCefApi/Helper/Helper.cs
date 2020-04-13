@@ -270,7 +270,7 @@ namespace RegistroBoletoCefApi
             }
         }
 
-        internal static string DownloadArquivo(string url)
+        internal static byte[] DownloadArquivo(string url)
         {
             var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
@@ -281,10 +281,10 @@ namespace RegistroBoletoCefApi
                 throw new FileNotFoundException(responseMessage.Content.ReadAsStringAsync().Result);
             }
 
-            return responseMessage.Content.ReadAsStreamAsync().Result.ConvertToBase64();
+            return responseMessage.Content.ReadAsStreamAsync().Result.ConvertToByteArray();
         }
 
-        private static string ConvertToBase64(this Stream stream)
+        private static byte[] ConvertToByteArray(this Stream stream)
         {
             byte[] bytes;
             using (var memoryStream = new MemoryStream())
@@ -293,7 +293,7 @@ namespace RegistroBoletoCefApi
                 bytes = memoryStream.ToArray();
             }
 
-            return Convert.ToBase64String(bytes);
+            return bytes;
         }
     }
 }

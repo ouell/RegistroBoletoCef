@@ -1,30 +1,70 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Serialization;
+using AutoMapper;
 using Microsoft.Extensions.Configuration;
+using RegistroBoletoCefApi.ClientApi.IClientApi;
 using RegistroBoletoCefApi.Models;
 using RegistroBoletoCefApi.Models.CEF;
 using RegistroBoletoCefApi.Models.Enum;
 
-namespace RegistroBoletoCefApi.ApiCliente
+namespace RegistroBoletoCefApi.ClientApi
 {
     /// <summary>
     /// Classe reponsável pelo cliente da CEF
     /// </summary>
-    public class ApiCefCliente
+    public class ClientApiCef : IClientApiCef
     {
+        /// <summary>
+        /// Automapper
+        /// </summary>
+        private readonly IMapper _mapper;
+
         /// <summary>
         /// Configuration
         /// </summary>
         private readonly IConfiguration _configuration;
 
+
         /// <summary>
         /// Construtor
         /// </summary>
+        /// <param name="mapper">Automapper</param>
         /// <param name="configuration">Configuration</param>
-        public ApiCefCliente(IConfiguration configuration)
+        public ClientApiCef(IMapper mapper,
+                            IConfiguration configuration)
         {
+            _mapper = mapper;
             _configuration = configuration;
+        }
+
+        /// <summary>
+        /// Realiza o registro de boleto no webservice da CEF
+        /// </summary>
+        /// <param name="solicitacao">Dados para solicitação <seealso cref="SolicitacaoDto"/></param>
+        /// <returns>Dados de retorno do webservice da CEF <seealso cref="SolicitacaoRetornoDto"/></returns>
+        public async Task<SolicitacaoRetornoDto> RegistrarBoleto(SolicitacaoDto solicitacao)
+        {
+            var xmlSolicitacaoRegistro = GerarXmlInclusaoBoleto(solicitacao);
+            var document = new XmlDocument();
+            document.LoadXml(xmlSolicitacaoRegistro);
+
+            var dadosXmlRetorno = Helper.CallSoapWebRequest(_configuration["APPSETTINGS:CAIXAENDPOINT"],
+                                                            document.InnerXml,
+                                                            "INCLUI_BOLETO");
+
+            var retornoWebService = Helper.XmlDeserialize<SoapEnvelopeSaida>(dadosXmlRetorno);
+
+            var retorno = _mapper.Map<SolicitacaoRetornoDto>(solicitacao);
+            retorno.XmlRetorno = dadosXmlRetorno;
+            retorno.XmlSolicitacao = xmlSolicitacaoRegistro;
+            retorno.CodigoBarras = retornoWebService.body.SERVICO_SAIDA.Dados.ControleNegocial.CodRetorno;
+            retorno.LinhaDigitavel = retornoWebService.body.SERVICO_SAIDA.Dados.IncluiBoleto.LinhaDigitavel;
+            retorno.ArquivoBoleto = Helper.DownloadArquivo(retornoWebService.body.SERVICO_SAIDA.Dados.IncluiBoleto.Url);
+
+            return retorno;
         }
         
         /// <summary>
